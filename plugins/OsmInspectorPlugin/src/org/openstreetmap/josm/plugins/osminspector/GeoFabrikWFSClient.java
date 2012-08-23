@@ -37,17 +37,8 @@ public class GeoFabrikWFSClient {
 
 	public FeatureCollection<SimpleFeatureType, SimpleFeature> getFeatures()
 			throws IOException, NoSuchAuthorityCodeException, FactoryException {
-		String getCapabilities = "http://tools.geofabrik.de/osmi/view/routing_non_eu/wxs?SERVICE=WFS&VERSION=1.0.0&REQUEST=GetCapabilities";
-		Map connectionParameters = new HashMap();
-		connectionParameters.put("WFSDataStoreFactory:GET_CAPABILITIES_URL",
-				getCapabilities);
-		connectionParameters.put("WFSDataStoreFactory:WFS_STRATEGY",
-				"mapserver");
-		connectionParameters.put("WFSDataStoreFactory:LENIENT", true);
-		connectionParameters.put("WFSDataStoreFactory:TIMEOUT", 20000);
-		connectionParameters.put("WFSDataStoreFactory:BUFFER_SIZE", 10000);
-		// Step 2 - connection
-		data = DataStoreFinder.getDataStore(connectionParameters);
+		
+		initialzeDataStore();
 		
 		// Step 3 - discovery; enhance to iterate over all types with bounds
 		String typeNames[] = data.getTypeNames();
@@ -98,15 +89,32 @@ public class GeoFabrikWFSClient {
 		//
 	}
 
+	public void initialzeDataStore() throws IOException {
+		String getCapabilities = "http://tools.geofabrik.de/osmi/view/routing_non_eu/wxs?SERVICE=WFS&VERSION=1.0.0&REQUEST=GetCapabilities";
+		@SuppressWarnings("rawtypes")
+		Map<String, Comparable> connectionParameters = new HashMap<String, Comparable>();
+		connectionParameters.put("WFSDataStoreFactory:GET_CAPABILITIES_URL",
+				getCapabilities);
+		connectionParameters.put("WFSDataStoreFactory:WFS_STRATEGY",
+				"mapserver");
+		connectionParameters.put("WFSDataStoreFactory:LENIENT", true);
+		connectionParameters.put("WFSDataStoreFactory:TIMEOUT", 20000);
+		connectionParameters.put("WFSDataStoreFactory:BUFFER_SIZE", 10000);
+		// Step 2 - connection
+		data = DataStoreFinder.getDataStore(connectionParameters);
+	}
+
 	/**
 	 * @param args
 	 */
+	@SuppressWarnings("deprecation")
 	public static void main(String[] args) {
 
 		try {
 			//CoordinateReferenceSystem targetCRS = CRS.decode("EPSG:4326");
 			GeoFabrikWFSClient theTest = new GeoFabrikWFSClient(
 					new Bounds(-124.0, -120.0, 32.0, 36.0));
+			theTest.initialzeDataStore();
 			FeatureCollection<SimpleFeatureType, SimpleFeature> features = theTest
 					.getFeatures();
 			OsmInspectorLayer inspector = new OsmInspectorLayer(
@@ -117,7 +125,7 @@ public class GeoFabrikWFSClient {
 			Iterator<SimpleFeature> iterator = features.iterator();
 			try {
 				while (iterator.hasNext()) {
-					Feature feature = (Feature) iterator.next();
+					Feature feature = iterator.next();
 					bounds.include(feature.getBounds());
 				}
 				System.out.println("Calculated Bounds:" + bounds);

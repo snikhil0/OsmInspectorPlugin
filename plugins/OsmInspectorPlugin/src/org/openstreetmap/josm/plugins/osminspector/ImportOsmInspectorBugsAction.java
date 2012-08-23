@@ -39,7 +39,7 @@ public class ImportOsmInspectorBugsAction extends JosmAction {
 				CoordinateReferenceSystem targetCRS = CRS.decode("EPSG:4326");
 				Bounds bounds = Main.map.mapView.getLatLonBounds(Main.map.mapView.getBounds());
 				GeoFabrikWFSClient wfs = new GeoFabrikWFSClient(bounds);
-				wfs.getFeatures();
+				wfs.initialzeDataStore();
 				OsmInspectorLayer inspector = new OsmInspectorLayer(
 						wfs.getData());
 				Main.main.addLayer(inspector);
