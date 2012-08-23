@@ -12,6 +12,7 @@ import org.geotools.referencing.CRS;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.JosmAction;
+import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.tools.Shortcut;
 
 public class ImportOsmInspectorBugsAction extends JosmAction {
@@ -36,11 +37,9 @@ public class ImportOsmInspectorBugsAction extends JosmAction {
 			System.out.println("enabled event...");
 			try {
 				CoordinateReferenceSystem targetCRS = CRS.decode("EPSG:4326");
-				Rectangle bounds = Main.map.mapView.getBounds();
-				ReferencedEnvelope refBbox = new ReferencedEnvelope(
-						bounds.getMinX(), bounds.getMaxX(), bounds.getMinX(),
-						bounds.getMaxY(), targetCRS);
-				GeoFabrikWFSClient wfs = new GeoFabrikWFSClient(refBbox);
+				Bounds bounds = Main.map.mapView.getLatLonBounds(Main.map.mapView.getBounds());
+				GeoFabrikWFSClient wfs = new GeoFabrikWFSClient(bounds);
+				wfs.getFeatures();
 				OsmInspectorLayer inspector = new OsmInspectorLayer(
 						wfs.getData());
 				Main.main.addLayer(inspector);

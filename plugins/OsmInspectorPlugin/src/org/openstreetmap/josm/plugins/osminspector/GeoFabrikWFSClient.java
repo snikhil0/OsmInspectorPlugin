@@ -1,58 +1,38 @@
 package org.openstreetmap.josm.plugins.osminspector;
 
-import java.awt.Graphics2D;
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Level;
-
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.JWindow;
 
 import org.geotools.data.DataStore;
 import org.geotools.data.DataStoreFinder;
-import org.geotools.data.DefaultTransaction;
 import org.geotools.data.FeatureSource;
-import org.geotools.data.FeatureStore;
-import org.geotools.data.Query;
-import org.geotools.data.Transaction;
-import org.geotools.data.wfs.WFSDataStoreFactory;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.factory.GeoTools;
 import org.geotools.feature.FeatureCollection;
-import org.geotools.feature.type.AttributeDescriptorImpl;
-import org.geotools.geometry.jts.JTS;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
-import org.geotools.xml.XMLSAXHandler;
-
 import org.opengis.feature.Feature;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
 import org.opengis.feature.type.AttributeDescriptor;
 import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory;
 import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.expression.Expression;
-import org.opengis.filter.spatial.Intersects;
-import org.opengis.geometry.Envelope;
 import org.opengis.referencing.FactoryException;
 import org.opengis.referencing.NoSuchAuthorityCodeException;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.data.Bounds;
+import org.openstreetmap.josm.data.coor.LatLon;
 
 public class GeoFabrikWFSClient {
 
-	private final Envelope bbox;
+	private final Bounds bbox;
 	private DataStore data;
 	
-	public GeoFabrikWFSClient(Envelope env) {
-		bbox = env;
+	public GeoFabrikWFSClient(Bounds bounds) {
+		bbox = bounds;
 	}
 
 	public FeatureCollection<SimpleFeatureType, SimpleFeature> getFeatures()
@@ -76,16 +56,30 @@ public class GeoFabrikWFSClient {
 		// Step 4 - target
 		FeatureSource<SimpleFeatureType, SimpleFeature> source = data
 				.getFeatureSource(typeName);
-		System.out.println("Metadata Bounds:" + source.getBounds());
+		System.out.println("Source Metadata Bounds:" + source.getBounds());
+		System.out.println("Source schema: " + source.getSchema());
+		
 		// Step 5 - query
 		List<AttributeDescriptor> listAttrs = schema.getAttributeDescriptors();
 		String geomName = listAttrs.get(0).getLocalName();
-		ReferencedEnvelope bboxRef = new ReferencedEnvelope(bbox);
-
+		CoordinateReferenceSystem targetCRS = CRS.decode("EPSG:4236");
+				
+		LatLon minLL = bbox.getMin();
+		LatLon maxLL = bbox.getMax();
+		double minLat = Math.min(minLL.getY(), maxLL.getY());
+		double maxLat = Math.max(minLL.getY(), maxLL.getY());
+		double minLon = Math.min(minLL.getX(), maxLL.getX());
+		double maxLon = Math.max(minLL.getX(), maxLL.getX());
+		
+		
+		ReferencedEnvelope bboxRef = new ReferencedEnvelope(minLon, maxLon, minLat, maxLat, targetCRS);
+		System.out.println("Reference Bounds:" + bboxRef);
+		
 		//
 		// Ask WFS service for typeName data constrained by bboxRef
 		//
 		FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2(GeoTools
+
 				.getDefaultHints());
 		Filter filterBB = ff.bbox(ff.property(geomName), bboxRef);
 		FeatureCollection<SimpleFeatureType, SimpleFeature> features = source
@@ -110,10 +104,9 @@ public class GeoFabrikWFSClient {
 	public static void main(String[] args) {
 
 		try {
-			CoordinateReferenceSystem targetCRS = CRS.decode("EPSG:4326");
+			//CoordinateReferenceSystem targetCRS = CRS.decode("EPSG:4326");
 			GeoFabrikWFSClient theTest = new GeoFabrikWFSClient(
-					new ReferencedEnvelope(-124.0, -120.0, 32.0, 36.0,
-							targetCRS));
+					new Bounds(-124.0, -120.0, 32.0, 36.0));
 			FeatureCollection<SimpleFeatureType, SimpleFeature> features = theTest
 					.getFeatures();
 			OsmInspectorLayer inspector = new OsmInspectorLayer(

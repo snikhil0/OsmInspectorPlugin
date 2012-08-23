@@ -8,7 +8,6 @@ import javax.swing.Action;
 import javax.swing.Icon;
 
 import org.geotools.data.DataStore;
-import org.geotools.data.shapefile.ShapefileDataStore;
 import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.geometry.jts.ReferencedEnvelope;
@@ -25,13 +24,11 @@ import org.geotools.styling.Stroke;
 import org.geotools.styling.Style;
 import org.geotools.styling.StyleFactory;
 import org.geotools.styling.Symbolizer;
-import org.opengis.feature.simple.SimpleFeatureType;
 import org.opengis.feature.type.GeometryDescriptor;
 import org.opengis.filter.FilterFactory2;
 import org.opengis.referencing.FactoryException;
 import org.opengis.referencing.NoSuchAuthorityCodeException;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.osm.visitor.BoundingXYVisitor;
@@ -46,6 +43,7 @@ import com.vividsolutions.jts.geom.MultiLineString;
 import com.vividsolutions.jts.geom.MultiPolygon;
 import com.vividsolutions.jts.geom.Polygon;
 
+@SuppressWarnings("deprecation")
 public class OsmInspectorLayer extends Layer {
 
 	private StyleFactory sf = CommonFactoryFinder.getStyleFactory(null);
@@ -62,6 +60,7 @@ public class OsmInspectorLayer extends Layer {
 
 	private static final Color LINE_COLOUR = Color.BLUE;
 	private static final Color FILL_COLOUR = Color.CYAN;
+	@SuppressWarnings("unused")
 	private static final Color SELECTED_COLOUR = Color.YELLOW;
 	private static final float OPACITY = 1.0f;
 	private static final float LINE_WIDTH = 1.0f;
@@ -69,20 +68,31 @@ public class OsmInspectorLayer extends Layer {
 
 	public OsmInspectorLayer(DataStore data)
 			throws NoSuchAuthorityCodeException, FactoryException, IOException {
-		super("Shapefile");
+		super("OsmInspector");
 		// Step 3 - discovery; enhance to iterate over all types with bounds
-		String typeNames[] = data.getTypeNames();
-		String typeName = typeNames[1];
 		
-		featureSource = data.getFeatureSource(typeName);
-		setGeometry();
+		String typeNames[] = data.getTypeNames();
+		
+		for(int idx=1; idx < typeNames.length; ++idx) {
+			String typeName = typeNames[idx];
+			if(idx == 1) {
+				featureSource = data.getFeatureSource(typeName);
+			} else {
+				featureSource.getFeatures().addAll(data.getFeatureSource(typeName).getFeatures());
+			}
+			
+			setGeometry();
 
+			
+		}
+		
+		System.out.println("Osm Inspector Features size: " + featureSource.getFeatures().size());
 		renderer = new StreamingRenderer();
 		crs = CRS.decode("EPSG:4326");
 		MapContext context = new DefaultMapContext(crs);
-		context.setTitle("Shapefile");
 		Style style = createDefaultStyle();
 		context.addLayer(featureSource, style);
+		context.setTitle("OsmInspector");
 		renderer.setContext(context);
 	}
 
@@ -174,7 +184,7 @@ public class OsmInspectorLayer extends Layer {
 
 	@Override
 	public String getToolTipText() {
-		return "Shapefile";
+		return "OsmInspector";
 	}
 
 	@Override
