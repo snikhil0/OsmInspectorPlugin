@@ -16,19 +16,20 @@ import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.tools.Shortcut;
 
 public class ImportOsmInspectorBugsAction extends JosmAction {
-
+	OsmInspectorPlugin plugin;
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = -6484182416189079287L;
 
-	public ImportOsmInspectorBugsAction() {
+	public ImportOsmInspectorBugsAction( OsmInspectorPlugin thePlugin ) {
 		super(tr("Import Osm Inspector Bugs..."), "importosmibugs",
 				tr("Import Osm Inspector Bugs..."), Shortcut.registerShortcut(
 						"importosmibugs",
 						tr("Edit: {10}", tr("Import Osm Inspector Bugs...")),
 						KeyEvent.VK_O, Shortcut.ALT_CTRL), true);
 		putValue("help", ht("/Action/ImportOsmInspectorBugs"));
+		plugin = thePlugin;
 	}
 
 	@Override
@@ -38,11 +39,25 @@ public class ImportOsmInspectorBugsAction extends JosmAction {
 			try {
 				CoordinateReferenceSystem targetCRS = CRS.decode("EPSG:4326");
 				Bounds bounds = Main.map.mapView.getLatLonBounds(Main.map.mapView.getBounds());
-				GeoFabrikWFSClient wfs = new GeoFabrikWFSClient(bounds);
-				wfs.initialzeDataStore();
-				OsmInspectorLayer inspector = new OsmInspectorLayer(
-						wfs.getData());
-				Main.main.addLayer(inspector);
+				
+				System.out.println( "OSMI View bounds" + bounds );
+				
+				OsmInspectorLayer inspector = plugin.getLayer();
+				
+				if( inspector == null )
+				{
+					GeoFabrikWFSClient wfs = new GeoFabrikWFSClient(bounds);
+					wfs.initializeDataStore();
+					inspector = new OsmInspectorLayer( wfs );
+					Main.main.addLayer( inspector );
+					plugin.setLayer( inspector );
+				}
+				else
+				{
+					GeoFabrikWFSClient wfs = new GeoFabrikWFSClient(bounds);
+					wfs.initializeDataStore();
+					inspector.loadFeatures( wfs );
+				}
 			} catch (Exception e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();

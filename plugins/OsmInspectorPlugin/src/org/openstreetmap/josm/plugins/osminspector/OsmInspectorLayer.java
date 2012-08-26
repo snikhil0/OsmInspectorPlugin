@@ -3,6 +3,8 @@ package org.openstreetmap.josm.plugins.osminspector;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
 
 import javax.swing.Action;
 import javax.swing.Icon;
@@ -10,9 +12,11 @@ import javax.swing.Icon;
 import org.geotools.data.DataStore;
 import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.factory.CommonFactoryFinder;
+import org.geotools.feature.FeatureCollection;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.map.DefaultMapContext;
 import org.geotools.map.MapContext;
+import org.geotools.map.MapLayer;
 import org.geotools.referencing.CRS;
 import org.geotools.renderer.lite.StreamingRenderer;
 import org.geotools.styling.FeatureTypeStyle;
@@ -24,12 +28,16 @@ import org.geotools.styling.Stroke;
 import org.geotools.styling.Style;
 import org.geotools.styling.StyleFactory;
 import org.geotools.styling.Symbolizer;
+import org.opengis.feature.simple.SimpleFeature;
+import org.opengis.feature.simple.SimpleFeatureType;
 import org.opengis.feature.type.GeometryDescriptor;
 import org.opengis.filter.FilterFactory2;
 import org.opengis.referencing.FactoryException;
 import org.opengis.referencing.NoSuchAuthorityCodeException;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
+import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.Bounds;
+import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.osm.visitor.BoundingXYVisitor;
 import org.openstreetmap.josm.gui.MapView;
@@ -50,52 +58,81 @@ public class OsmInspectorLayer extends Layer {
 	private FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2(null);
 	private StreamingRenderer renderer;
 	private CoordinateReferenceSystem crs;
+	private CoordinateReferenceSystem crsOSMI;
 	private GeomType geometryType;
 	private String geometryAttributeName;
 	private SimpleFeatureSource featureSource;
-
+	private MapContext context;
+	
 	private enum GeomType {
 		POINT, LINE, POLYGON
 	};
 
 	private static final Color LINE_COLOUR = Color.BLUE;
 	private static final Color FILL_COLOUR = Color.CYAN;
-	@SuppressWarnings("unused")
 	private static final Color SELECTED_COLOUR = Color.YELLOW;
 	private static final float OPACITY = 1.0f;
 	private static final float LINE_WIDTH = 1.0f;
 	private static final float POINT_SIZE = 10.0f;
 
-	public OsmInspectorLayer(DataStore data)
+	private ArrayList< OSMIFeatureTracker > arrFeatures;
+	
+	public OsmInspectorLayer(GeoFabrikWFSClient wfsClient)
 			throws NoSuchAuthorityCodeException, FactoryException, IOException {
 		super("OsmInspector");
+		
+		arrFeatures 		= new ArrayList();
+		
 		// Step 3 - discovery; enhance to iterate over all types with bounds
 		
-		String typeNames[] = data.getTypeNames();
+		String typeNames[] 	= wfsClient.getTypeNames();
+		renderer 			= new StreamingRenderer();
+		crs 				= CRS.decode(Main.getProjection().toCode());
+        crsOSMI 			= CRS.decode("EPSG:4326");
+		context 			= new DefaultMapContext(crsOSMI);
 		
-		for(int idx=1; idx < typeNames.length; ++idx) {
+		for(int idx=1; idx < typeNames.length; ++idx) 
+		{
 			String typeName = typeNames[idx];
-			if(idx == 1) {
-				featureSource = data.getFeatureSource(typeName);
-			} else {
-				featureSource.getFeatures().addAll(data.getFeatureSource(typeName).getFeatures());
-			}
-			
-			setGeometry();
 
+			FeatureCollection<SimpleFeatureType, SimpleFeature> features = wfsClient.getFeatures( typeName );
+			setGeometry( typeName );
+		
+			System.out.println("Osm Inspector Features size: " + features.size());
+			Style style = createDefaultStyle();
+			context.addLayer(features, style);
 			
+			OSMIFeatureTracker tracker = new OSMIFeatureTracker( features );
+			arrFeatures.add( tracker );
 		}
 		
-		System.out.println("Osm Inspector Features size: " + featureSource.getFeatures().size());
-		renderer = new StreamingRenderer();
-		crs = CRS.decode("EPSG:4326");
-		MapContext context = new DefaultMapContext(crs);
-		Style style = createDefaultStyle();
-		context.addLayer(featureSource, style);
-		context.setTitle("OsmInspector");
+		context.setTitle("Osm Inspector Errors");
 		renderer.setContext(context);
 	}
 
+	public void loadFeatures( GeoFabrikWFSClient wfsClient ) 
+			throws NoSuchAuthorityCodeException, FactoryException, IOException
+	{
+		String typeNames[] 	= wfsClient.getTypeNames();
+		int		layerOffset = 1;
+		
+		context.clearLayerList();
+		
+		for(int idx=layerOffset; idx < typeNames.length; ++idx) 
+		{
+			String typeName = typeNames[idx];
+
+			FeatureCollection<SimpleFeatureType, SimpleFeature> features = wfsClient.getFeatures( typeName );
+			System.out.println("Osm Inspector Features size: " + features.size());
+			
+			OSMIFeatureTracker tracker = arrFeatures.get( idx - layerOffset );
+			tracker.mergeFeatures( features );
+			
+			Style style = createDefaultStyle();
+			context.addLayer(tracker.getFeatures(), style);
+		}		
+	}
+	
 	private Style createDefaultStyle() {
 		Rule rule = createRule(LINE_COLOUR, FILL_COLOUR);
 
@@ -145,26 +182,13 @@ public class OsmInspectorLayer extends Layer {
 		return rule;
 	}
 
-	private void setGeometry() {
-		GeometryDescriptor geomDesc = featureSource.getSchema()
-				.getGeometryDescriptor();
-		geometryAttributeName = geomDesc.getLocalName();
-
-		Class<?> clazz = geomDesc.getType().getBinding();
-
-		if (Polygon.class.isAssignableFrom(clazz)
-				|| MultiPolygon.class.isAssignableFrom(clazz)) {
-			geometryType = GeomType.POLYGON;
-
-		} else if (LineString.class.isAssignableFrom(clazz)
-				|| MultiLineString.class.isAssignableFrom(clazz)) {
-
+	private void setGeometry( String typename ) {
+		if (typename.compareTo("duplicate_ways") == 0) 
+		{
 			geometryType = GeomType.LINE;
-
-		} else {
+		} 
+		else
 			geometryType = GeomType.POINT;
-		}
-
 	}
 
 	@Override
@@ -198,13 +222,27 @@ public class OsmInspectorLayer extends Layer {
 	}
 
 	@Override
-	public void paint(Graphics2D g, MapView mv, Bounds box) {
+	public void paint(Graphics2D g, MapView mv, Bounds box) 
+	{
 		LatLon min = box.getMin();
 		LatLon max = box.getMax();
+		
 		Coordinate northWest = new Coordinate(max.getX(), min.getY());
 		Coordinate southEast = new Coordinate(min.getX(), max.getY());
-		Envelope envelope = new Envelope(northWest, southEast);
+		
+        EastNorth center = Main.map.mapView.getCenter();
+        EastNorth leftop = Main.map.mapView.getEastNorth(0, 0);
+        EastNorth rightbot = Main.map.mapView.getEastNorth(mv.getBounds().width, mv.getBounds().height);
+
+		Envelope envelope = new Envelope( Math.min( leftop.east(), rightbot.east() ),
+											Math.max( leftop.east(), rightbot.east() ),
+											Math.min( rightbot.north(), leftop.north() ),
+											Math.max( rightbot.north(), leftop.north() )
+										);
+
 		ReferencedEnvelope mapArea = new ReferencedEnvelope(envelope, crs);
+
+		renderer.setInteractive( false );
 		renderer.paint(g, mv.getBounds(), mapArea);
 	}
 

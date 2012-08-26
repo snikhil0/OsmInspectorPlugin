@@ -70,11 +70,13 @@ MouseListener, PreferenceChangedListener{
         Main.pref.put("osmInspector.showBugs", true);
         Main.pref.put("osmInspector.version", getPluginInformation().version);
         Main.pref.put("osmInspector.localVersion",getPluginInformation().localversion);
+        
+        inspectorLayer = null;
     }
 	@Override
 	public void mapFrameInitialized(MapFrame oldFrame, MapFrame newFrame) {
 		System.out.println("In map frame initialized");
-		Main.toolbar.register(new  ImportOsmInspectorBugsAction());
+		Main.toolbar.register( new ImportOsmInspectorBugsAction( this ) );
 		if (newFrame == null) {
             /* if new MapFrame is null, remove listener */
 			System.out.println("newFrame is null");
@@ -94,7 +96,7 @@ MouseListener, PreferenceChangedListener{
                 /* put username to preferences */
                 Main.pref.put("osmInspector.josmUserName",
                         userIdentityManager.getUserName());
-                Main.toolbar.control.add(new ImportOsmInspectorBugsAction());
+                Main.toolbar.control.add( new ImportOsmInspectorBugsAction( this ) );
                 System.out.println("Action added to control....");
             }
         }
@@ -162,4 +164,13 @@ MouseListener, PreferenceChangedListener{
 		
 	}
 
+	public OsmInspectorLayer getLayer()
+	{
+		return inspectorLayer;
+	}
+
+	public void setLayer( OsmInspectorLayer theLayer )
+	{
+		inspectorLayer = theLayer;
+	}
 }
