@@ -123,6 +123,8 @@ public class OsmInspectorLayer extends Layer {
 			String typeName = typeNames[idx];
 
 			FeatureCollection<SimpleFeatureType, SimpleFeature> features = wfsClient.getFeatures( typeName );
+			setGeometry( typeName );
+			
 			System.out.println("Osm Inspector Features size: " + features.size());
 			
 			OSMIFeatureTracker tracker = arrFeatures.get( idx - layerOffset );
@@ -182,7 +184,9 @@ public class OsmInspectorLayer extends Layer {
 		return rule;
 	}
 
-	private void setGeometry( String typename ) {
+	private void setGeometry( String typename ) 
+	{
+		System.out.println("Passed type is" + typename);
 		if (typename.compareTo("duplicate_ways") == 0) 
 		{
 			geometryType = GeomType.LINE;
