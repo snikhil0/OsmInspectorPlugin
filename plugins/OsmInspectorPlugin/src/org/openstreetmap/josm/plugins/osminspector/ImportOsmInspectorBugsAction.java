@@ -57,6 +57,7 @@ public class ImportOsmInspectorBugsAction extends JosmAction {
 					GeoFabrikWFSClient wfs = new GeoFabrikWFSClient(bounds);
 					wfs.initializeDataStore();
 					inspector.loadFeatures( wfs );
+					
 				}
 			} catch (Exception e) {
 				// TODO Auto-generated catch block

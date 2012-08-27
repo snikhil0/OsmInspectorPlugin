@@ -50,7 +50,7 @@ public class GeoFabrikWFSClient {
 		System.out.println("Source schema: " + source.getSchema());
 		
 		// Step 5 - query
-		List<AttributeDescriptor> listAttrs = schema.getAttributeDescriptors();
+		List<AttributeDescriptor> listAttrs = schema.getAttributeDescriptors(); 
 		String geomName = listAttrs.get(0).getLocalName();
 		CoordinateReferenceSystem targetCRS = CRS.decode("EPSG:4236");
 

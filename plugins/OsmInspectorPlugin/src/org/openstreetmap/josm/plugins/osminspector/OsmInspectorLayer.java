@@ -110,7 +110,7 @@ public class OsmInspectorLayer extends Layer {
 		renderer.setContext(context);
 	}
 
-	public void loadFeatures( GeoFabrikWFSClient wfsClient ) 
+	public void loadFeatures( GeoFabrikWFSClient wfsClient )
 			throws NoSuchAuthorityCodeException, FactoryException, IOException
 	{
 		String typeNames[] 	= wfsClient.getTypeNames();
