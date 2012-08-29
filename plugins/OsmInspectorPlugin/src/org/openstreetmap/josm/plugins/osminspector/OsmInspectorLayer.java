@@ -4,6 +4,7 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 
 import javax.swing.Action;
@@ -63,6 +64,7 @@ public class OsmInspectorLayer extends Layer {
 	private String geometryAttributeName;
 	private SimpleFeatureSource featureSource;
 	private MapContext context;
+	private boolean bIsChanged;
 	
 	private enum GeomType {
 		POINT, LINE, POLYGON
@@ -100,14 +102,16 @@ public class OsmInspectorLayer extends Layer {
 		
 			System.out.println("Osm Inspector Features size: " + features.size());
 			Style style = createDefaultStyle();
-			context.addLayer(features, style);
 			
 			OSMIFeatureTracker tracker = new OSMIFeatureTracker( features );
 			arrFeatures.add( tracker );
+			
+			context.addLayer( tracker.getFeatures(), style );
 		}
 		
 		context.setTitle("Osm Inspector Errors");
 		renderer.setContext(context);
+		bIsChanged	= true;
 	}
 
 	public void loadFeatures( GeoFabrikWFSClient wfsClient )
@@ -118,7 +122,7 @@ public class OsmInspectorLayer extends Layer {
 		
 		context.clearLayerList();
 		
-		for(int idx=layerOffset; idx < typeNames.length; ++idx) 
+		for(int idx=1; idx < typeNames.length; ++idx) 
 		{
 			String typeName = typeNames[idx];
 
@@ -131,8 +135,10 @@ public class OsmInspectorLayer extends Layer {
 			tracker.mergeFeatures( features );
 			
 			Style style = createDefaultStyle();
-			context.addLayer(tracker.getFeatures(), style);
+			context.addLayer( tracker.getFeatures(), style);
 		}		
+		
+		bIsChanged	= true;
 	}
 	
 	private Style createDefaultStyle() {
@@ -149,14 +155,12 @@ public class OsmInspectorLayer extends Layer {
 	private Rule createRule(Color outlineColor, Color fillColor) {
 		Symbolizer symbolizer = null;
 		Fill fill = null;
-		Stroke stroke = sf.createStroke(ff.literal(outlineColor),
-				ff.literal(LINE_WIDTH));
+		Stroke stroke = sf.createStroke(ff.literal(outlineColor), ff.literal(LINE_WIDTH));
 
 		switch (geometryType) {
 		case POLYGON:
 			fill = sf.createFill(ff.literal(fillColor), ff.literal(OPACITY));
-			symbolizer = sf.createPolygonSymbolizer(stroke, fill,
-					geometryAttributeName);
+			symbolizer = sf.createPolygonSymbolizer(stroke, fill, geometryAttributeName);
 			break;
 
 		case LINE:
@@ -166,7 +170,7 @@ public class OsmInspectorLayer extends Layer {
 		case POINT:
 			fill = sf.createFill(ff.literal(fillColor), ff.literal(OPACITY));
 
-			Mark mark = sf.getCircleMark();
+			Mark mark = sf.getTriangleMark();
 			mark.setFill(fill);
 			mark.setStroke(stroke);
 
@@ -175,8 +179,7 @@ public class OsmInspectorLayer extends Layer {
 			graphic.graphicalSymbols().add(mark);
 			graphic.setSize(ff.literal(POINT_SIZE));
 
-			symbolizer = sf.createPointSymbolizer(graphic,
-					geometryAttributeName);
+			symbolizer = sf.createPointSymbolizer(graphic, geometryAttributeName);
 		}
 
 		Rule rule = sf.createRule();
@@ -244,14 +247,28 @@ public class OsmInspectorLayer extends Layer {
 											Math.max( rightbot.north(), leftop.north() )
 										);
 
-		ReferencedEnvelope mapArea = new ReferencedEnvelope(envelope, crs);
+		Envelope envelope2 = new Envelope( Math.min( min.lat(), max.lat() ),
+											Math.max( min.lat(), max.lat() ),
+											Math.min( min.lon(), max.lon() ),
+											Math.max( min.lon(), max.lon() )
+										);
 
+//		ReferencedEnvelope mapArea = new ReferencedEnvelope(envelope, crs);
+		ReferencedEnvelope mapArea = new ReferencedEnvelope(envelope2, crsOSMI);
+
+//		System.out.println( "rendering bounds:" + envelope + " box " + box + " maparea " + mapArea );
+		
 		renderer.setInteractive( false );
 		renderer.paint(g, mv.getBounds(), mapArea);
+		bIsChanged	= false;
 	}
 
 	@Override
 	public void visitBoundingBox(BoundingXYVisitor v) {
 	}
+	
+    public boolean isChanged() {
+        return bIsChanged;
+    }
 
 }
