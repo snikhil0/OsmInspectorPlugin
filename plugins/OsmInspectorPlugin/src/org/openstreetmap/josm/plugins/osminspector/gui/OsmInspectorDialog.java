@@ -10,7 +10,7 @@ import java.awt.event.MouseListener;
 import java.util.Arrays;
 
 import javax.swing.AbstractAction;
-import javax.swing.DefaultListSelectionModel;
+import javax.swing.DefaultListModel;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.ListSelectionModel;
@@ -36,6 +36,7 @@ public class OsmInspectorDialog extends ToggleDialog implements
 	private OsmInspectorNextAction actNext;
 	private OsmInspectorPrevAction actPrev;
 	private SelectionPopup popup;
+	private DefaultListModel model;
 	/**
 	 * 
 	 */
@@ -56,19 +57,13 @@ public class OsmInspectorDialog extends ToggleDialog implements
 	protected void buildContentPanel() {
 		Main.map.addToggleDialog(this, true);
 		
-		DefaultListSelectionModel selectionModel = new DefaultListSelectionModel();
-		bugsList = new JList(layer.getOsmiBugInfo().toArray());
-		bugsList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
-		bugsList.setSelectionModel(selectionModel);
-		bugsList.setCellRenderer(new OsmPrimitivRenderer());
-		bugsList.setTransferHandler(null); // Fix #6290. Drag & Drop is not
-											// supported anyway and Copy/Paste
-											// is better propagated to main
-											// window
-
-		for (BugInfo b : layer.getOsmiBugInfo()) {
-			bugsList.add("bug", new JLabel(b.toString()));
-		}
+		model = new DefaultListModel();
+		refreshModel();
+		bugsList = new JList(model);
+		bugsList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+		bugsList.setLayoutOrientation(JList.HORIZONTAL_WRAP);
+		bugsList.setVisibleRowCount(-1);
+		// refreshBugList();
 		// the next action
 		final SideButton nextButton = new SideButton(
 				actNext = new OsmInspectorNextAction(layer));
@@ -99,6 +94,14 @@ public class OsmInspectorDialog extends ToggleDialog implements
 		createLayout(bugsList, true,
 				Arrays.asList(new SideButton[] { nextButton, prevButton }));
 		this.add(bugsList);
+	}
+
+	private void refreshModel() {
+		model.clear();
+		for (BugInfo b : layer.getOsmiBugInfo()) {
+			model.addElement(b.toString());
+		}
+		
 	}
 
 	public OsmInspectorDialog(OsmInspectorLayer layer) {
@@ -213,20 +216,35 @@ public class OsmInspectorDialog extends ToggleDialog implements
 	}
 
 	@Override
-	public void activeLayerChange(Layer arg0, Layer arg1) {
-		// TODO Auto-generated method stub
+	public void activeLayerChange(Layer oldLayer, Layer newLayer) {
+		if(newLayer instanceof OsmInspectorLayer) {
+			this.layer = (OsmInspectorLayer) newLayer;
+			refreshModel();
+			refreshBugList();
+		}
 
+	}
+
+	private void refreshBugList() {
+		bugsList.clearSelection();
+		bugsList = new JList(model);
+		
 	}
 
 	@Override
 	public void layerAdded(Layer layer) {
-
+		if(layer instanceof OsmInspectorLayer) {
+			refreshModel();
+			refreshBugList();
+		}
 	}
 
 	@Override
 	public void layerRemoved(Layer arg0) {
-		// TODO Auto-generated method stub
-
+		if(layer instanceof OsmInspectorLayer) {
+			bugsList.clearSelection();
+			model.clear();
+		}
 	}
 
 	@Override

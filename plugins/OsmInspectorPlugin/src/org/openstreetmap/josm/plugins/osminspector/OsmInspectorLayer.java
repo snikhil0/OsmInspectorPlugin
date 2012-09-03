@@ -207,7 +207,6 @@ public class OsmInspectorLayer extends Layer {
 		arrFeatures = new ArrayList<OSMIFeatureTracker>();
 		osmiBugInfo = new LinkedList<OsmInspectorLayer.BugInfo>();
 		bugsInScene = new ArrayList<SimpleFeature>();
-		dialog = new OsmInspectorDialog(this);
 		
 		// Step 3 - discovery; enhance to iterate over all types with bounds
 
@@ -247,6 +246,9 @@ public class OsmInspectorLayer extends Layer {
 		context.setTitle("Osm Inspector Errors");
 		renderer.setContext(context);
 		bIsChanged = true;
+		
+		// finally initialize the dialog
+		dialog = new OsmInspectorDialog(this);
 		
 	}
 
