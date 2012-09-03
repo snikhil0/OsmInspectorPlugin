@@ -433,6 +433,18 @@ public class OsmInspectorLayer extends Layer {
 	 *
 	 */
 	public class BugInfo {
+		public Geometry getGeom() {
+			return geom;
+		}
+
+		public String getDesc() {
+			return desc;
+		}
+
+		public String getId() {
+			return id;
+		}
+
 		private final Geometry geom;
 		private final String desc;
 		private final String id;

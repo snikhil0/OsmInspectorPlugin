@@ -18,6 +18,7 @@ import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 
 import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.gui.MapView.LayerChangeListener;
 import org.openstreetmap.josm.gui.OsmPrimitivRenderer;
 import org.openstreetmap.josm.gui.SideButton;
@@ -27,6 +28,9 @@ import org.openstreetmap.josm.gui.widgets.ListPopupMenu;
 import org.openstreetmap.josm.plugins.osminspector.OsmInspectorLayer;
 import org.openstreetmap.josm.plugins.osminspector.OsmInspectorLayer.BugInfo;
 import org.openstreetmap.josm.tools.Shortcut;
+
+import com.vividsolutions.jts.geom.Geometry;
+import com.vividsolutions.jts.geom.Point;
 
 public class OsmInspectorDialog extends ToggleDialog implements
 		ListSelectionListener, LayerChangeListener, MouseListener {
@@ -70,7 +74,11 @@ public class OsmInspectorDialog extends ToggleDialog implements
 		bugsList.getSelectionModel().addListSelectionListener(actNext);
 		nextButton.createArrow(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				System.out.println(e);
+				int index = bugsList.getSelectedIndex();
+				Geometry geom = layer.getOsmiBugInfo().get(index).getGeom();
+				Point centroid = geom.getCentroid();
+				LatLon center = new LatLon(centroid.getY(), centroid.getX());
+				Main.map.mapView.zoomTo(center);
 			}
 		});
 
@@ -99,7 +107,7 @@ public class OsmInspectorDialog extends ToggleDialog implements
 	private void refreshModel() {
 		model.clear();
 		for (BugInfo b : layer.getOsmiBugInfo()) {
-			model.addElement(b.toString());
+			model.addElement(b.getDesc());
 		}
 		
 	}
@@ -150,6 +158,10 @@ public class OsmInspectorDialog extends ToggleDialog implements
 			layer.getOsmiIndex().next();
 			BugInfo next = layer.getOsmiIndex().getItemPointedByNext();
 			System.out.println(next);
+			Geometry geom = next.getGeom();
+			Point centroid = geom.getCentroid();
+			LatLon center = new LatLon(centroid.getY(), centroid.getX());
+			Main.map.mapView.zoomTo(center);
 
 		}
 
@@ -176,6 +188,10 @@ public class OsmInspectorDialog extends ToggleDialog implements
 			layer.getOsmiIndex().prev();
 			BugInfo prev = layer.getOsmiIndex().getItemPointedByPrev();
 			System.out.println(prev);
+			Geometry geom = prev.getGeom();
+			Point centroid = geom.getCentroid();
+			LatLon center = new LatLon(centroid.getY(), centroid.getX());
+			Main.map.mapView.zoomTo(center);
 		}
 
 		@Override
@@ -249,8 +265,7 @@ public class OsmInspectorDialog extends ToggleDialog implements
 
 	@Override
 	public void valueChanged(ListSelectionEvent e) {
-		// TODO Auto-generated method stub
-
+		System.out.println(e.getFirstIndex());
 	}
 
 }
