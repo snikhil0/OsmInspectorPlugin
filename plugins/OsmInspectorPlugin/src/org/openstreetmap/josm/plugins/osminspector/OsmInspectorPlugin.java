@@ -18,40 +18,36 @@ import org.openstreetmap.josm.gui.MapView;
 import org.openstreetmap.josm.gui.MapView.LayerChangeListener;
 import org.openstreetmap.josm.gui.NavigatableComponent;
 import org.openstreetmap.josm.gui.NavigatableComponent.ZoomChangeListener;
+import org.openstreetmap.josm.gui.download.DownloadDialog;
 import org.openstreetmap.josm.gui.download.DownloadSelection;
 import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.preferences.PreferenceSetting;
 import org.openstreetmap.josm.plugins.Plugin;
 import org.openstreetmap.josm.plugins.PluginInformation;
+import org.openstreetmap.josm.plugins.osminspector.gui.OsmInspectorDialog;
 import org.openstreetmap.josm.tools.Shortcut;
 
 public class OsmInspectorPlugin extends Plugin 
 implements LayerChangeListener, ZoomChangeListener, 
-MouseListener, PreferenceChangedListener{
+MouseListener, PreferenceChangedListener, DownloadSelection{
 
 	/** The JOSM user identity manager, it is used for obtaining the user name */
     private final JosmUserIdentityManager userIdentityManager;
    
-    /** The list of <code>OsmInspectorError</code> objects */
-    private List<OsmInspectorError> osmInspectorError;
 
     /** The bounding box from where the MapDust bugs are down-loaded */
     private Bounds bBox;
 
     private OsmInspectorLayer inspectorLayer;
-    /**
-     * The <code>OsmInspectorErrorFilter</code> object representing the selected
-     * filters
-     */
-    private OsmInspectorErrorFilter filter;
     
 	public OsmInspectorPlugin(PluginInformation info) {
 		super(info);
 		userIdentityManager = JosmUserIdentityManager.getInstance();
-		filter = null;
-		osmInspectorError = new ArrayList<OsmInspectorError>();
 		initializePlugin();
 	}
+	
+	
+	
 	
 	 /**
      * Initialize the <code>OsmInspectorPlugin</code> object. Creates the
@@ -70,7 +66,6 @@ MouseListener, PreferenceChangedListener{
         Main.pref.put("osmInspector.showBugs", true);
         Main.pref.put("osmInspector.version", getPluginInformation().version);
         Main.pref.put("osmInspector.localVersion",getPluginInformation().localversion);
-        
         inspectorLayer = null;
     }
 	@Override
@@ -172,5 +167,23 @@ MouseListener, PreferenceChangedListener{
 	public void setLayer( OsmInspectorLayer theLayer )
 	{
 		inspectorLayer = theLayer;
+	}
+
+
+
+
+	@Override
+	public void addGui(DownloadDialog gui) {
+		// TODO Auto-generated method stub
+		
+	}
+
+
+
+
+	@Override
+	public void setDownloadArea(Bounds bounds) {
+		// TODO Auto-generated method stub
+		
 	}
 }
