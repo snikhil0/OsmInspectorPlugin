@@ -5,7 +5,7 @@
     <!-- enter the *lowest* JOSM version this plugin is currently compatible with -->
     <property name="plugin.main.version" value="4394"/>
     <!-- should not be necessary to change the following properties -->
-    <property name="josm" location="../../core/dist/josm-custom.jar"/>
+    <property name="josm" location="/Users/martijnv/osm/josm/dist/josm-custom.jar"/>
     <property name="plugin.build.dir" value="build"/>
     <property name="plugin.src.dir" value="src"/>
     <property name="plugin.lib.dir" value="lib"/>  
@@ -53,7 +53,7 @@
     ** dist - creates the plugin jar
     **********************************************************
     -->
-    <target name="dist" depends="compile,revision">
+    <target name="dist" depends="compile">
         <echo message="creating ${ant.project.name}.jar ... "/>
         <copy todir="${plugin.build.dir}/resources">
             <fileset dir="lib"/>

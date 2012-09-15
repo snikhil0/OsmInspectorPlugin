@@ -153,7 +153,6 @@ public class OsmInspectorDialog extends ToggleDialog implements
 			layer = (OsmInspectorLayer) inspector;
 		}
 
-		@Override
 		public void actionPerformed(ActionEvent e) {
 			layer.getOsmiIndex().next();
 			BugInfo next = layer.getOsmiIndex().getItemPointedByNext();
@@ -165,7 +164,6 @@ public class OsmInspectorDialog extends ToggleDialog implements
 
 		}
 
-		@Override
 		public void valueChanged(ListSelectionEvent arg0) {
 			// TODO Auto-generated method stub
 
@@ -183,7 +181,6 @@ public class OsmInspectorDialog extends ToggleDialog implements
 
 		}
 
-		@Override
 		public void actionPerformed(ActionEvent e) {
 			layer.getOsmiIndex().prev();
 			BugInfo prev = layer.getOsmiIndex().getItemPointedByPrev();
@@ -194,44 +191,37 @@ public class OsmInspectorDialog extends ToggleDialog implements
 			Main.map.mapView.zoomTo(center);
 		}
 
-		@Override
 		public void valueChanged(ListSelectionEvent e) {
 			// TODO Auto-generated method stub
 
 		}
 	}
 
-	@Override
 	public void mouseClicked(MouseEvent e) {
 		// TODO Auto-generated method stub
 
 	}
 
-	@Override
 	public void mouseEntered(MouseEvent e) {
 		// TODO Auto-generated method stub
 
 	}
 
-	@Override
 	public void mouseExited(MouseEvent e) {
 		// TODO Auto-generated method stub
 
 	}
 
-	@Override
 	public void mousePressed(MouseEvent e) {
 		// TODO Auto-generated method stub
 
 	}
 
-	@Override
 	public void mouseReleased(MouseEvent e) {
 		// TODO Auto-generated method stub
 
 	}
 
-	@Override
 	public void activeLayerChange(Layer oldLayer, Layer newLayer) {
 		if(newLayer instanceof OsmInspectorLayer) {
 			this.layer = (OsmInspectorLayer) newLayer;
@@ -247,7 +237,6 @@ public class OsmInspectorDialog extends ToggleDialog implements
 		
 	}
 
-	@Override
 	public void layerAdded(Layer layer) {
 		if(layer instanceof OsmInspectorLayer) {
 			refreshModel();
@@ -255,7 +244,6 @@ public class OsmInspectorDialog extends ToggleDialog implements
 		}
 	}
 
-	@Override
 	public void layerRemoved(Layer arg0) {
 		if(layer instanceof OsmInspectorLayer) {
 			bugsList.clearSelection();
@@ -263,7 +251,6 @@ public class OsmInspectorDialog extends ToggleDialog implements
 		}
 	}
 
-	@Override
 	public void valueChanged(ListSelectionEvent e) {
 		System.out.println(e.getFirstIndex());
 	}

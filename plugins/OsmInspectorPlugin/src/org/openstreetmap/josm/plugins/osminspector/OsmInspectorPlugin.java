@@ -109,52 +109,42 @@ MouseListener, PreferenceChangedListener, DownloadSelection{
 		super.addDownloadSelection(list);
 	}
 
-	@Override
 	public void activeLayerChange(Layer oldLayer, Layer newLayer) {
 		
 	}
 
-	@Override
 	public void layerAdded(Layer newLayer) {
 		
 	}
 
-	@Override
 	public void layerRemoved(Layer oldLayer) {
 		
 	}
 
-	@Override
 	public void zoomChanged() {
 		
 	}
 
-	@Override
 	public void mouseClicked(MouseEvent arg0) {
 		
 	}
 
-	@Override
 	public void mouseEntered(MouseEvent arg0) {
 		
 	}
 
-	@Override
 	public void mouseExited(MouseEvent arg0) {
 		
 	}
 
-	@Override
 	public void mousePressed(MouseEvent arg0) {
 		
 	}
 
-	@Override
 	public void mouseReleased(MouseEvent arg0) {
 		
 	}
 
-	@Override
 	public void preferenceChanged(PreferenceChangeEvent e) {
 		
 	}
@@ -172,7 +162,6 @@ MouseListener, PreferenceChangedListener, DownloadSelection{
 
 
 
-	@Override
 	public void addGui(DownloadDialog gui) {
 		// TODO Auto-generated method stub
 		
@@ -181,7 +170,6 @@ MouseListener, PreferenceChangedListener, DownloadSelection{
 
 
 
-	@Override
 	public void setDownloadArea(Bounds bounds) {
 		// TODO Auto-generated method stub
 		

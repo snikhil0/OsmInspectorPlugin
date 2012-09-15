@@ -32,7 +32,6 @@ public class ImportOsmInspectorBugsAction extends JosmAction {
 		plugin = thePlugin;
 	}
 
-	@Override
 	public void actionPerformed(ActionEvent event) {
 		if(isEnabled()) {
 			System.out.println("enabled event...");
