@@ -162,7 +162,7 @@ public class OsmInspectorDialog extends ToggleDialog implements
 			Point centroid = geom.getCentroid();
 			LatLon center = new LatLon(centroid.getY(), centroid.getX());
 			Main.map.mapView.zoomTo(center);
-
+			
 		}
 
 		@Override
