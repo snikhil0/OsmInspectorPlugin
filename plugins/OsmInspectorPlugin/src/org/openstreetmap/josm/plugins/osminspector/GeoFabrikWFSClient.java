@@ -75,16 +75,6 @@ public class GeoFabrikWFSClient {
 		FeatureCollection<SimpleFeatureType, SimpleFeature> features = source.getFeatures(filterBB);
 
 		return features;
-		//
-		// As features are iterated, construct an error icon much like what OSMI
-		// currently uses, and styled similarly
-		// Bonus points if JOSM auto triggers a data load based on the BBox.
-		// Might be best left to user...
-		//
-		// See
-		// https://github.com/iandees/josm-shapefile/blob/master/src/main/java/com/yellowbkpk/geo/shapefile/ShapefileLayer.java
-		// for rendering ideas
-		//
 	}
 
 	public void initializeDataStore() throws IOException {

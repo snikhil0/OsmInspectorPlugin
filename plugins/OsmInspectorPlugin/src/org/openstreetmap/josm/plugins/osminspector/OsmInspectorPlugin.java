@@ -12,6 +12,8 @@ import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.Preferences.PreferenceChangeEvent;
 import org.openstreetmap.josm.data.Preferences.PreferenceChangedListener;
+import org.openstreetmap.josm.data.coor.EastNorth;
+import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.gui.JosmUserIdentityManager;
 import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.gui.MapView;
@@ -130,8 +132,11 @@ MouseListener, PreferenceChangedListener, DownloadSelection{
 	}
 
 	@Override
+	//
+	//  Delegate feature selection to layer
+	//
 	public void mouseClicked(MouseEvent arg0) {
-		
+		inspectorLayer.selectFeatures(arg0.getX(), arg0.getY());
 	}
 
 	@Override

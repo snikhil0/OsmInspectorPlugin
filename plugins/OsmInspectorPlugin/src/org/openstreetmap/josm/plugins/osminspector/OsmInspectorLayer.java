@@ -4,17 +4,22 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.NoSuchElementException;
+import java.util.Set;
 
 import javax.swing.Action;
 import javax.swing.Icon;
 
 import org.apache.commons.lang.time.StopWatch;
+import org.geotools.data.DataUtilities;
 import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.FeatureIterator;
+import org.geotools.filter.Filter;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.map.DefaultMapContext;
 import org.geotools.map.MapContext;
@@ -49,6 +54,7 @@ import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.Envelope;
 import com.vividsolutions.jts.geom.Geometry;
 import com.vividsolutions.jts.io.ParseException;
+import org.opengis.filter.identity.FeatureId;
 
 @SuppressWarnings("deprecation")
 public class OsmInspectorLayer extends Layer {
@@ -65,6 +71,20 @@ public class OsmInspectorLayer extends Layer {
 	private MapContext context;
 	private boolean bIsChanged;
 
+	private int layerOffset = 1;
+	
+	private ArrayList<GeomType> selectGeomType;
+	private Color[] featureFills = { new Color( 255, 0, 0), 
+									new Color( 0, 0, 255), // duplicate ways
+									new Color( 204, 204, 0), // minor 5
+									new Color( 255, 230, 128), // minor 2
+									new Color( 255, 204, 0), //minor 1
+									new Color( 255, 102, 102), //major 5 
+									new Color( 255, 148, 77), // major 2
+									new Color( 255, 0, 0), // major 1
+									new Color( 255, 255, 64 ), //selected
+									new Color( 255, 0, 0), 
+									new Color( 255, 0, 0)  };
 	/**
 	 * dialog showing the bug info
 	 */
@@ -77,7 +97,6 @@ public class OsmInspectorLayer extends Layer {
 
 	// Container for bugs from Osmi
 	private ArrayList<OSMIFeatureTracker> arrFeatures;
-	private ArrayList<SimpleFeature> bugsInScene;
 	private LinkedList<BugInfo> osmiBugInfo;
 
 	public SimpleFeatureSource getFeatureSource() {
@@ -104,16 +123,8 @@ public class OsmInspectorLayer extends Layer {
 		this.arrFeatures = arrFeatures;
 	}
 
-	public ArrayList<SimpleFeature> getBugsInScene() {
-		return bugsInScene;
-	}
-
-	public void setBugsInScene(ArrayList<SimpleFeature> bugsInScene) {
-		this.bugsInScene = bugsInScene;
-	}
-
 	public LinkedList<BugInfo> getOsmiBugInfo() {
-		return osmiBugInfo;
+		return getOsmiIndex().getBugs();
 	}
 
 	public void setOsmiBugInfo(LinkedList<BugInfo> osmiBugInfo) {
@@ -130,7 +141,48 @@ public class OsmInspectorLayer extends Layer {
 
 	// Pointer to prev and next osmi bugs
 	private BugIndex osmiIndex;
+	/**
+	 * 
+	 * The Bug attribute class: hold geom, id and description for that bug
+	 * @author snikhil
+	 *
+	 */
+	public class BugInfo {
+		public Geometry getGeom() {
+			return geom;
+		}
 
+		public String getDesc() {
+			return desc;
+		}
+
+		public String getId() {
+			return id;
+		}
+
+		public String getExtendedDesc()
+		{
+			return String.valueOf(id).concat(" : ").concat(desc);
+		}
+		
+		private final Geometry geom;
+		private final String desc;
+		private final String id;
+
+		public BugInfo(SimpleFeature next) throws IndexOutOfBoundsException,
+				ParseException {
+			this.geom = (Geometry) next.getAttribute(0);
+			this.desc = (String) next.getAttribute("error_desc");
+			this.id = next.getID();
+		}
+
+		@Override
+		public String toString() {
+			// TODO Auto-generated method stub
+			return String.valueOf(id).concat(" : ").concat(geom.toString())
+					.concat(" : ").concat(desc);
+		}
+	}
 	/**
 	 * Helper class that stores the bug next and prev pointers and can navigate
 	 * the entire bug list
@@ -143,12 +195,17 @@ public class OsmInspectorLayer extends Layer {
 		private int previousIndex;
 		private LinkedList<BugInfo> osmBugs;
 
-		public BugIndex(LinkedList<BugInfo> bugs) {
-			osmBugs = bugs;
+		public BugIndex() {
+			osmBugs = new LinkedList<BugInfo>();
 			nextIndex = 0;
-			previousIndex = bugs.size() - 1;
+			previousIndex = -1;
 		}
 
+		public void add( BugInfo theInfo )
+		{
+			osmBugs.add( theInfo );
+		}
+		
 		public void next() {
 			previousIndex = nextIndex;
 			nextIndex = ++nextIndex % osmBugs.size();
@@ -178,14 +235,18 @@ public class OsmInspectorLayer extends Layer {
 			return osmBugs.get(nextIndex);
 		}
 
+		public LinkedList<BugInfo> getBugs()
+		{
+			return osmBugs;
+		}
 	}
 
 	private enum GeomType {
 		POINT, LINE, POLYGON
 	};
 
-	private static final Color LINE_COLOUR = Color.BLUE;
-	private static final Color FILL_COLOUR = Color.CYAN;
+	private static final Color SELECTED_COLOUR = Color.YELLOW;
+	private static final float SELECTED_POINT_SIZE = 15.0f;
 	private static final float OPACITY = 1.0f;
 	private static final float LINE_WIDTH = 1.0f;
 	private static final float POINT_SIZE = 10.0f;
@@ -206,7 +267,7 @@ public class OsmInspectorLayer extends Layer {
 		
 		arrFeatures = new ArrayList<OSMIFeatureTracker>();
 		osmiBugInfo = new LinkedList<OsmInspectorLayer.BugInfo>();
-		bugsInScene = new ArrayList<SimpleFeature>();
+		selectGeomType = new ArrayList<GeomType>();
 		
 		// Step 3 - discovery; enhance to iterate over all types with bounds
 
@@ -216,32 +277,32 @@ public class OsmInspectorLayer extends Layer {
 		crsOSMI = CRS.decode("EPSG:4326");
 		context = new DefaultMapContext(crsOSMI);
 
-		for (int idx = 1; idx < typeNames.length; ++idx) {
+		osmiIndex = new BugIndex();
+		selectGeomType.add( GeomType.POINT );
+
+		for (int idx = 1; idx < typeNames.length; ++idx) 
+		{
 			String typeName = typeNames[idx];
+			Set<FeatureId> selectedFeatures = new HashSet();
+			
+			FeatureCollection<SimpleFeatureType, SimpleFeature> features = wfsClient.getFeatures(typeName);
+			setGeometry(selectGeomType, typeName);
 
-			FeatureCollection<SimpleFeatureType, SimpleFeature> features = wfsClient
-					.getFeatures(typeName);
-			setGeometry(typeName);
-
-			System.out.println("Osm Inspector Features size: "
-					+ features.size());
-			Style style = createDefaultStyle();
+			System.out.println("Osm Inspector Features size: "+ features.size());
+			Style style = createDefaultStyle( idx, selectedFeatures );
 
 			OSMIFeatureTracker tracker = new OSMIFeatureTracker(features);
 			arrFeatures.add(tracker);
-			FeatureIterator<SimpleFeature> it = tracker.getFeatures()
-					.features();
-			while (it.hasNext()) {
-				bugsInScene.add(it.next());
+			FeatureIterator<SimpleFeature> it = tracker.getFeatures().features();
+			
+			while (it.hasNext()) 
+			{
+				BugInfo theInfo = new BugInfo( it.next()) ;
+				osmiIndex.add( theInfo );
 			}
-			context.addLayer(tracker.getFeatures(), style);
+			
+			context.addLayer( tracker.getFeatures(), style );
 		}
-
-		Iterator<SimpleFeature> sfi = bugsInScene.iterator();
-		while (sfi.hasNext()) {
-			osmiBugInfo.add(new BugInfo(sfi.next()));
-		}
-		osmiIndex = new BugIndex(osmiBugInfo);
 
 		context.setTitle("Osm Inspector Errors");
 		renderer.setContext(context);
@@ -258,44 +319,58 @@ public class OsmInspectorLayer extends Layer {
 	 * @throws NoSuchAuthorityCodeException
 	 * @throws FactoryException
 	 * @throws IOException
+	 * @throws ParseException 
+	 * @throws NoSuchElementException 
+	 * @throws IndexOutOfBoundsException 
 	 */
 	public void loadFeatures(GeoFabrikWFSClient wfsClient)
-			throws NoSuchAuthorityCodeException, FactoryException, IOException {
+			throws NoSuchAuthorityCodeException, FactoryException, IOException, IndexOutOfBoundsException, NoSuchElementException, ParseException {
 		String typeNames[] = wfsClient.getTypeNames();
-		int layerOffset = 1;
-
+		
 		context.clearLayerList();
-
-		for (int idx = 1; idx < typeNames.length; ++idx) {
+		selectGeomType.clear();
+		selectGeomType.add( GeomType.POINT );
+		
+		for (int idx = 1; idx < typeNames.length; ++idx) 
+		{
 			String typeName = typeNames[idx];
+			Set<FeatureId> selectedFeatures = new HashSet();
+			
+			FeatureCollection<SimpleFeatureType, SimpleFeature> features = wfsClient .getFeatures(typeName);
+			setGeometry(selectGeomType, typeName);
 
-			FeatureCollection<SimpleFeatureType, SimpleFeature> features = wfsClient
-					.getFeatures(typeName);
-			setGeometry(typeName);
-
-			System.out.println("Osm Inspector Features size: "
-					+ features.size());
+			System.out.println("Osm Inspector Features size: " + features.size());
 
 			OSMIFeatureTracker tracker = arrFeatures.get(idx - layerOffset);
 			tracker.mergeFeatures(features);
 
-			FeatureIterator<SimpleFeature> it = tracker.getFeatures()
-					.features();
-			while (it.hasNext()) {
-				bugsInScene.add(it.next());
+			FeatureIterator<SimpleFeature> it = tracker.getFeatures().features();
+			
+			while (it.hasNext()) 
+			{
+				BugInfo theInfo = new BugInfo( it.next() );
+				osmiIndex.add( theInfo );
 			}
 
-			Style style = createDefaultStyle();
-			context.addLayer(tracker.getFeatures(), style);
+			Style style = createDefaultStyle( idx, selectedFeatures );
+			context.addLayer( tracker.getFeatures(), style );
 		}
 
 		bIsChanged = true;
+		dialog.refreshModel();
 	}
 
-	private Style createDefaultStyle() {
-		Rule rule = createRule(LINE_COLOUR, FILL_COLOUR);
+	private Style createDefaultStyle( int idx, Set<FeatureId> IDs ) {
+		Color fillColor = featureFills[ idx ];
+		
+        Rule selectedRule = createRule(SELECTED_COLOUR, SELECTED_COLOUR,true);
+        selectedRule.setFilter(ff.id(IDs));
+		
+		Rule rule = createRule(fillColor, fillColor,false);
+	    rule.setElseFilter(true);
 
 		FeatureTypeStyle fts = sf.createFeatureTypeStyle();
+		fts.rules().add(selectedRule);
 		fts.rules().add(rule);
 
 		Style style = sf.createStyle();
@@ -303,17 +378,15 @@ public class OsmInspectorLayer extends Layer {
 		return style;
 	}
 
-	private Rule createRule(Color outlineColor, Color fillColor) {
+	private Rule createRule(Color outlineColor, Color fillColor, boolean bSelected) {
 		Symbolizer symbolizer = null;
 		Fill fill = null;
-		Stroke stroke = sf.createStroke(ff.literal(outlineColor),
-				ff.literal(LINE_WIDTH));
+		Stroke stroke = sf.createStroke(ff.literal(outlineColor), ff.literal(LINE_WIDTH));
 
 		switch (geometryType) {
 		case POLYGON:
 			fill = sf.createFill(ff.literal(fillColor), ff.literal(OPACITY));
-			symbolizer = sf.createPolygonSymbolizer(stroke, fill,
-					geometryAttributeName);
+			symbolizer = sf.createPolygonSymbolizer(stroke, fill, geometryAttributeName);
 			break;
 
 		case LINE:
@@ -330,10 +403,9 @@ public class OsmInspectorLayer extends Layer {
 			Graphic graphic = sf.createDefaultGraphic();
 			graphic.graphicalSymbols().clear();
 			graphic.graphicalSymbols().add(mark);
-			graphic.setSize(ff.literal(POINT_SIZE));
+			graphic.setSize(ff.literal(bSelected ? SELECTED_POINT_SIZE : POINT_SIZE));
 
-			symbolizer = sf.createPointSymbolizer(graphic,
-					geometryAttributeName);
+			symbolizer = sf.createPointSymbolizer(graphic, geometryAttributeName);
 		}
 
 		Rule rule = sf.createRule();
@@ -341,12 +413,14 @@ public class OsmInspectorLayer extends Layer {
 		return rule;
 	}
 
-	private void setGeometry(String typename) {
+	private void setGeometry(ArrayList<GeomType> selectedTypes, String typename) {
 		System.out.println("Passed type is" + typename);
 		if (typename.compareTo("duplicate_ways") == 0) {
 			geometryType = GeomType.LINE;
 		} else
 			geometryType = GeomType.POINT;
+		
+		selectedTypes.add( geometryType );
 	}
 
 	@Override
@@ -381,10 +455,6 @@ public class OsmInspectorLayer extends Layer {
 
 	@Override
 	public void paint(Graphics2D g, MapView mv, Bounds box) {
-		System.out.println("Rendering time...");
-		StopWatch sw = new StopWatch();
-		sw.start();
-
 		LatLon min = box.getMin();
 		LatLon max = box.getMax();
 
@@ -414,8 +484,6 @@ public class OsmInspectorLayer extends Layer {
 		renderer.setInteractive(false);
 		renderer.paint(g, mv.getBounds(), mapArea);
 		bIsChanged = false;
-		sw.stop();
-		System.out.println(sw.getTime());
 	}
 
 	@Override
@@ -426,42 +494,62 @@ public class OsmInspectorLayer extends Layer {
 		return bIsChanged;
 	}
 
-	/**
-	 * 
-	 * The Bug attribute class: hold geom, id and description for that bug
-	 * @author snikhil
-	 *
-	 */
-	public class BugInfo {
-		public Geometry getGeom() {
-			return geom;
-		}
+	public void selectFeatures( int x, int y )
+	{
+		int pixelDelta   = 5;
+		LatLon clickUL   = Main.map.mapView.getLatLon( x - pixelDelta, y - pixelDelta );
+		LatLon clickLR   = Main.map.mapView.getLatLon( x + pixelDelta, y + pixelDelta );
+		
+		Envelope envelope = new Envelope(
+				Math.min(clickUL.lon(), clickLR.lon()),
+				Math.max(clickUL.lon(), clickLR.lon()),
+				Math.min(clickUL.lat(), clickLR.lat()),
+				Math.max(clickUL.lat(), clickLR.lat()) 
+			);
+		
+		ReferencedEnvelope mapArea = new ReferencedEnvelope(envelope, crsOSMI);
+		
+		Filter filter = (Filter) ff.intersects(ff.property("msGeometry"), ff.literal(mapArea));
+//
+//  Select features in all layers
+//
+		context.clearLayerList();
 
-		public String getDesc() {
-			return desc;
-		}
+		for (int idx = 0; idx < arrFeatures.size(); ++idx) 
+		{
+			OSMIFeatureTracker tracker = arrFeatures.get(idx);
+			FeatureCollection<SimpleFeatureType, SimpleFeature> features = tracker.getFeatures();
+			
+			SimpleFeatureSource tempfs = DataUtilities.source( features );
+			FeatureCollection<SimpleFeatureType, SimpleFeature> selectedFeatures;
+			
+			try 
+			{
+				selectedFeatures = tempfs.getFeatures(filter);
 
-		public String getId() {
-			return id;
+	        	FeatureIterator<SimpleFeature> iter = selectedFeatures.features();
+	            Set<FeatureId> IDs = new HashSet<FeatureId>();
+	
+	            System.out.println( "Selected features " + selectedFeatures.size());
+	            
+	            while (iter.hasNext()) 
+	            {
+	                SimpleFeature feature = iter.next();
+	                IDs.add(feature.getIdentifier());
+	            }
+	
+	            iter.close();
+	
+	            geometryType = selectGeomType.get( idx + layerOffset );
+				Style style = createDefaultStyle( idx + layerOffset, IDs );
+				context.addLayer( features, style );
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		}
-
-		private final Geometry geom;
-		private final String desc;
-		private final String id;
-
-		public BugInfo(SimpleFeature next) throws IndexOutOfBoundsException,
-				ParseException {
-			this.geom = (Geometry) next.getAttribute(0);
-			this.desc = (String) next.getAttribute(7);
-			this.id = next.getID();
-		}
-
-		@Override
-		public String toString() {
-			// TODO Auto-generated method stub
-			return String.valueOf(id).concat(" : ").concat(geom.toString())
-					.concat(" : ").concat(desc);
-		}
+		
+		bIsChanged = true;
 	}
 
 }

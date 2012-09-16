@@ -104,10 +104,10 @@ public class OsmInspectorDialog extends ToggleDialog implements
 		this.add(bugsList);
 	}
 
-	private void refreshModel() {
+	public void refreshModel() {
 		model.clear();
 		for (BugInfo b : layer.getOsmiBugInfo()) {
-			model.addElement(b.getDesc());
+			model.addElement( b.getExtendedDesc() );
 		}
 		
 	}
